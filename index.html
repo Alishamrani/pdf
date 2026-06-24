@@ -1,1 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScholarSpace - Local PDF & Notes Hub</title>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --border: #334155;
+        }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: #0f172a;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .workspace {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 53px);
+        }
+
+        /* LEFT SIDE: PDF Viewer */
+        .pdf-container {
+            flex: 1.2;
+            height: 100%;
+            border-right: 1px solid var(--border);
+            background: #000;
+            position: relative;
+        }
+
+        #pdf-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .empty-state {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-main);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        /* RIGHT SIDE: Notes & Images */
+        .sidebar {
+            flex: 0.8;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: var(--bg-main);
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            padding: 0.75rem 1rem;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Notes Area */
+        .notes-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #notes-area {
+            flex: 1;
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            padding: 1rem;
+            resize: none;
+            outline: none;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        #notes-area::placeholder {
+            color: #475569;
+        }
+
+        /* Images Area */
+        .images-container {
+            height: 35%;
+            display: flex;
+            flex-direction: column;
+            border-top: 2px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        .image-grid {
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            flex: 1;
+            align-items: center;
+        }
+
+        .img-card {
+            position: relative;
+            height: 90px;
+            min-width: 90px;
+            width: 90px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            background: #000;
+            flex-shrink: 0;
+        }
+
+        .img-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.2s;
+        }
+
+        .img-card:hover img {
+            transform: scale(1.05);
+        }
+
+        .delete-img {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-img:hover {
+            background: #ef4444;
+        }
+
+        /* Fullscreen Image Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .modal img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: white;
+            color: black;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 1.25rem;
+            cursor: pointer;
+        }
+
+        .status-pill {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">📄 ScholarSpace</div>
+        <div class="controls">
+            <span class="status-pill" id="active-doc-label">No document loaded</span>
+            <button class="btn" onclick="document.getElementById('pdf-input').click()">📂 Open PDF</button>
+            <button class="btn btn-secondary" onclick="exportBackup()" id="export-btn" style="display:none;">💾 Export JSON Backup</button>
+            <input type="file" id="pdf-input" accept="application/pdf">
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="pdf-container">
+            <div class="empty-state" id="pdf-empty">
+                <h2 style="margin-bottom: 0.5rem;">Your Self-Contained Study Hub</h2>
+                <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Drag & drop a PDF anywhere, or browse your computer to start.</p>
+                <button class="btn" onclick="document.getElementById('pdf-input').click()">Select PDF File</button>
+            </div>
+            <iframe id="pdf-frame"></iframe>
+        </div>
+
+        <div class="sidebar">
+            <div class="notes-container">
+                <div class="section-title">
+                    <span>📝 Document Notes</span>
+                    <span class="status-pill" id="save-status"></span>
+                </div>
+                <textarea id="notes-area" placeholder="Open a PDF to start typing notes. Everything auto-saves locally to this specific file's name..."></textarea>
+            </div>
+
+            <div class="images-container">
+                <div class="section-title">
+                    <span>📎 Attached Reference Images</span>
+                    <button class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size:0.75rem;" onclick="document.getElementById('img-input').click()">+ Attach Image</button>
+                    <input type="file" id="img-input" accept="image/*" multiple>
+                </div>
+                <div class="image-grid" id="image-grid">
+                    <span style="color: var(--text-muted); font-size: 0.85rem; margin: auto;">No images attached to this PDF yet</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal" onclick="this.style.display='none'">
+        <button class="modal-close">&times;</button>
+        <img id="modal-img" src="" alt="Enlarged view" onclick="event.stopPropagation()">
+    </div>
+
+    <script>
+        const pdfInput = document.getElementById('pdf-input');
+        const imgInput = document.getElementById('img-input');
+        const pdfFrame = document.getElementById('pdf-frame');
+        const pdfEmpty = document.getElementById('pdf-empty');
+        const notesArea = document.getElementById('notes-area');
+        const imageGrid = document.getElementById('image-grid');
+        const activeDocLabel = document.getElementById('active-doc-label');
+        const saveStatus = document.getElementById('save-status');
+        const exportBtn = document.getElementById('export-btn');
+        const modal = document.getElementById('modal');
+        const modalImg = document.getElementById('modal-img');
+
+        let currentDocId = null;
+        let saveTimeout = null;
+
+        // 1. PDF Loader
+        pdfInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (pdfFrame.src) URL.revokeObjectURL(pdfFrame.src);
+            pdfFrame.src = URL.createObjectURL(file);
+            pdfEmpty.style.display = 'none';
+
+            // Create a safe, unique ID for localStorage keying
+            currentDocId = `doc_${encodeURIComponent(file.name)}_${file.size}`;
+            activeDocLabel.textContent = file.name;
+            exportBtn.style.display = 'block';
+
+            loadWorkspaceData();
+        });
+
+        // 2. Auto-save Notes
+        notesArea.addEventListener('input', function() {
+            if (!currentDocId) return;
+            saveStatus.textContent = 'Saving...';
+            
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                localStorage.setItem(`${currentDocId}_notes`, notesArea.value);
+                saveStatus.textContent = 'Saved locally';
+            }, 500);
+        });
+
+        // 3. Attach & Convert Images to Base64
+        imgInput.addEventListener('change', function(e) {
+            if (!currentDocId) {
+                alert("Please load a PDF document first!");
+                return;
+            }
+
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const b64 = event.target.result;
+                    let imgList = JSON.parse(localStorage.getItem(`${currentDocId}_images`) || '[]');
+                    imgList.push(b64);
+                    localStorage.setItem(`${currentDocId}_images`, JSON.stringify(imgList));
+                    renderThumb(b64);
+                };
+                reader.readAsDataURL(file);
+            });
+            e.target.value = '';
+        });
+
+        function deleteImage(cardElem) {
+            const idx = Array.from(imageGrid.children).indexOf(cardElem);
+            let imgList = JSON.parse(localStorage.getItem(`${currentDocId}_images`) || '[]');
+            imgList.splice(idx, 1);
+            localStorage.setItem(`${currentDocId}_images`, JSON.stringify(imgList));
+            cardElem.remove();
+
+            if (imgList.length === 0) {
+                imageGrid.innerHTML = `<span style="color: var(--text-muted); font-size: 0.85rem; margin: auto;">No images attached to this PDF yet</span>`;
+            }
+        }
+
+        // 4. Render State
+        function loadWorkspaceData() {
+            notesArea.value = localStorage.getItem(`${currentDocId}_notes`) || '';
+            saveStatus.textContent = '';
+            imageGrid.innerHTML = '';
+
+            const storedImgs = JSON.parse(localStorage.getItem(`${currentDocId}_images`) || '[]');
+            if (storedImgs.length === 0) {
+                imageGrid.innerHTML = `<span style="color: var(--text-muted); font-size: 0.85rem; margin: auto;">No images attached to this PDF yet</span>`;
+            } else {
+                storedImgs.forEach(b64 => renderThumb(b64));
+            }
+        }
+
+        function renderThumb(b64Str) {
+            if (imageGrid.querySelector('span')) imageGrid.innerHTML = '';
+            const card = document.createElement('div');
+            card.className = 'img-card';
+            card.innerHTML = `<img src="${b64Str}" alt="ref"><button class="delete-img">✕</button>`;
+            
+            card.querySelector('img').onclick = () => {
+                modalImg.src = b64Str;
+                modal.style.display = 'flex';
+            };
+            card.querySelector('.delete-img').onclick = (e) => {
+                e.stopPropagation();
+                deleteImage(card);
+            };
+            imageGrid.appendChild(card);
+        }
+
+        // 5. JSON Backup Generator
+        function exportBackup() {
+            if (!currentDocId) return;
+            const payload = {
+                pdfName: activeDocLabel.textContent,
+                notes: notesArea.value,
+                images: JSON.parse(localStorage.getItem(`${currentDocId}_images`) || '[]')
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${activeDocLabel.textContent.replace('.pdf','')} Workspace.json`;
+            a.click();
+        }
+
+        // Global Drag & Drop PDF override
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => {
+            e.preventDefault();
+            if (e.dataTransfer.files[0]?.type === "application/pdf") {
+                pdfInput.files = e.dataTransfer.files;
+                pdfInput.dispatchEvent(new Event('change'));
+            }
+        });
+    </script>
+</body>
+</html>
